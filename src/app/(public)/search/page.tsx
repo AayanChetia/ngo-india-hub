@@ -1,0 +1,106 @@
+import type { Metadata } from "next";
+import { createClient } from "@/lib/supabase/server";
+import {
+  searchNgosByText,
+  getStates,
+  type NgoFilters,
+  type SortOption,
+} from "@/lib/supabase/queries";
+import { NgoCard } from "@/components/ngo/NgoCard";
+import { FilterSidebar } from "@/components/search/FilterSidebar";
+import { SortSelect } from "@/components/search/SortSelect";
+
+export const metadata: Metadata = {
+  title: "Search NGOs — NGO India Hub",
+  description: "Search verified NGOs across India by name, cause, or city.",
+};
+
+type SearchParams = {
+  q?: string;
+  state?: string;
+  city?: string;
+  volunteer?: string;
+  internship?: string;
+  donation?: string;
+  sort?: string;
+};
+
+const VALID_SORTS: SortOption[] = [
+  "impact_score",
+  "name",
+  "founded_year_asc",
+  "founded_year_desc",
+  "beneficiaries_count",
+];
+
+function buildFilters(sp: SearchParams): NgoFilters {
+  const sort = VALID_SORTS.includes(sp.sort as SortOption)
+    ? (sp.sort as SortOption)
+    : "impact_score";
+  return {
+    state_id: sp.state || undefined,
+    city: sp.city || undefined,
+    volunteer_available: sp.volunteer === "1" || undefined,
+    internship_available: sp.internship === "1" || undefined,
+    donation_available: sp.donation === "1" || undefined,
+    sort,
+  };
+}
+
+export default async function SearchPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const supabase = createClient();
+  const q = searchParams.q ?? "";
+  const filters = buildFilters(searchParams);
+
+  const [ngos, states] = await Promise.all([
+    searchNgosByText(supabase, q, filters),
+    getStates(supabase),
+  ]);
+
+  return (
+    <div className="bg-white">
+      <div className="border-b border-ink-100 bg-primary-50">
+        <div className="container-page py-10">
+          <h1 className="text-3xl font-bold tracking-tight text-ink-900">
+            {q ? `Results for “${q}”` : "Search NGOs"}
+          </h1>
+          <p className="mt-1 text-ink-500">
+            {ngos.length} {ngos.length === 1 ? "NGO" : "NGOs"} found
+          </p>
+        </div>
+      </div>
+
+      <div className="container-page py-10">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[240px_1fr]">
+          <div className="lg:sticky lg:top-20 lg:self-start">
+            <FilterSidebar states={states} />
+          </div>
+
+          <div>
+            <div className="mb-6 flex items-center justify-end">
+              <SortSelect />
+            </div>
+            {ngos.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-ink-200 py-20 text-center">
+                <p className="text-ink-500">
+                  No NGOs match your search. Try a different term or clear
+                  filters.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                {ngos.map((ngo) => (
+                  <NgoCard key={ngo.id} ngo={ngo} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

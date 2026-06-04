@@ -181,6 +181,23 @@ export type NGO = {
   updated_at: string
 }
 
+// Full NGO profile — superset of NGO with contact + registration detail and
+// the complete category list. Used by the /ngo/[slug] profile page.
+export type NgoProfile = NGO & {
+  long_description: string | null
+  website: string | null
+  email: string | null
+  phone: string | null
+  logo_url: string | null
+  founded_year: number | null
+  address: string | null
+  pincode: string | null
+  registration_number: string | null
+  team_size: string | null
+  funding_type: string | null
+  categories: string[]
+}
+
 export type Category = {
   id: string
   category_id: string

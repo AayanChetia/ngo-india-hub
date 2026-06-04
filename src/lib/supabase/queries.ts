@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type {
   Database,
   NGO,
+  NgoProfile,
   Category,
   State,
   Program,
@@ -176,7 +177,95 @@ export async function getNgoBySlug(
   return toNgo(data as unknown as RawNgo)
 }
 
-/** Fetch all active NGOs belonging to a category (identified by slug). */
+// Full column set for the NGO profile page (contact + registration detail).
+const NGO_PROFILE_SELECT = `
+  id, ngo_id, slug, name, description, long_description,
+  website, email, phone, logo_url, social_links,
+  founded_year, city, address, pincode, registration_number,
+  is_80g, is_12a, is_fcra, is_verified, listing_status,
+  volunteer_available, internship_available, donation_available,
+  accepts_csr, team_size, funding_type, beneficiaries_count,
+  impact_score, created_at, updated_at,
+  states ( name ),
+  ngo_categories ( is_primary, categories ( name ) )
+`.trim()
+
+type RawNgoProfile = RawNgo & {
+  website: string | null
+  email: string | null
+  phone: string | null
+  logo_url: string | null
+  founded_year: number | null
+  address: string | null
+  pincode: string | null
+  registration_number: string | null
+  team_size: string | null
+  funding_type: string | null
+}
+
+function toNgoProfile(raw: RawNgoProfile): NgoProfile {
+  const base = toNgo(raw)
+  return {
+    ...base,
+    website: raw.website,
+    email: raw.email,
+    phone: raw.phone,
+    logo_url: raw.logo_url,
+    founded_year: raw.founded_year,
+    address: raw.address,
+    pincode: raw.pincode,
+    registration_number: raw.registration_number,
+    team_size: raw.team_size,
+    funding_type: raw.funding_type,
+    categories: raw.ngo_categories
+      .map((nc) => nc.categories?.name)
+      .filter((n): n is string => Boolean(n)),
+  }
+}
+
+/** Fetch a single active NGO with full detail by slug. Returns null if absent. */
+export async function getNgoProfileBySlug(
+  client: DbClient,
+  slug: string
+): Promise<NgoProfile | null> {
+  const { data, error } = await client
+    .from('ngos')
+    .select(NGO_PROFILE_SELECT)
+    .eq('slug', slug)
+    .eq('listing_status', 'Active')
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') return null // not found
+    throw error
+  }
+
+  return toNgoProfile(data as unknown as RawNgoProfile)
+}
+
+/** Fetch a category by its URL slug. Returns null if not found. */
+export async function getCategoryBySlug(
+  client: DbClient,
+  slug: string
+): Promise<Category | null> {
+  const { data, error } = await client
+    .from('categories')
+    .select('*')
+    .eq('slug', slug)
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') return null
+    throw error
+  }
+  return data as Category
+}
+
+/**
+ * Fetch active NGOs whose PRIMARY category matches the given slug.
+ * Using is_primary avoids pulling in NGOs that merely carry the category as a
+ * secondary tag (e.g. a Human Rights NGO also tagged Education).
+ */
 export async function getNgosByCategory(
   client: DbClient,
   categorySlug: string,
@@ -195,6 +284,7 @@ export async function getNgosByCategory(
     .from('ngo_categories')
     .select('*')
     .eq('category_id', category.id)
+    .eq('is_primary', true)
   const pivotRows = rawPivot as unknown as { ngo_id: string }[] | null
 
   if (pivotError || !pivotRows || pivotRows.length === 0) return []
@@ -280,6 +370,189 @@ export async function searchNgos(
   return ((data ?? []) as unknown as RawNgo[]).map(toNgo)
 }
 
+/**
+ * Free-text search over active NGOs by name, description, or city.
+ * Used by the /search results page.
+ */
+export async function searchNgosByText(
+  client: DbClient,
+  q: string,
+  filters: NgoFilters = {}
+): Promise<NGO[]> {
+  let query = client
+    .from('ngos')
+    .select(NGO_SELECT)
+    .eq('listing_status', 'Active')
+
+  const term = q.trim()
+  if (term) {
+    const like = `%${term}%`
+    query = query.or(
+      `name.ilike.${like},description.ilike.${like},city.ilike.${like}`
+    )
+  }
+
+  query = applyFilters(query, filters)
+
+  const { data, error } = await query
+  if (error) throw error
+  return ((data ?? []) as unknown as RawNgo[]).map(toNgo)
+}
+
+export type NgoSuggestion = {
+  slug: string
+  name: string
+  primary_category: string
+  city: string
+}
+
+export type SearchSuggestions = {
+  ngos: NgoSuggestion[]
+  categories: { name: string; slug: string }[]
+  cities: string[]
+}
+
+/**
+ * Grouped typeahead suggestions used by the homepage and header search.
+ * Triggers from a single character. Returns NGO name matches (prefix, ranked
+ * by impact score), matching categories, and matching cities.
+ */
+export async function getSearchSuggestions(
+  client: DbClient,
+  q: string,
+  limit = 8
+): Promise<SearchSuggestions> {
+  const term = q.trim()
+  if (term.length < 1) return { ngos: [], categories: [], cities: [] }
+
+  const prefix = `${term}%`
+
+  const [ngoRes, catRes, cityRes] = await Promise.all([
+    client
+      .from('ngos')
+      .select(
+        `slug, name, city,
+         ngo_categories ( is_primary, categories ( name ) )`
+      )
+      .eq('listing_status', 'Active')
+      .ilike('name', prefix)
+      .order('impact_score', { ascending: false })
+      .limit(limit),
+    client
+      .from('categories')
+      .select('name, slug')
+      .ilike('name', `%${term}%`)
+      .order('name', { ascending: true })
+      .limit(3),
+    client
+      .from('ngos')
+      .select('city')
+      .eq('listing_status', 'Active')
+      .ilike('city', prefix)
+      .not('city', 'is', null)
+      .limit(40),
+  ])
+
+  if (ngoRes.error) throw ngoRes.error
+
+  type RawNgoSug = {
+    slug: string
+    name: string
+    city: string | null
+    ngo_categories: Array<{
+      is_primary: boolean
+      categories: { name: string } | null
+    }>
+  }
+
+  const ngos: NgoSuggestion[] = ((ngoRes.data ?? []) as unknown as RawNgoSug[]).map(
+    (r) => {
+      const primary = r.ngo_categories.find((nc) => nc.is_primary)
+      return {
+        slug: r.slug,
+        name: r.name,
+        primary_category:
+          primary?.categories?.name ??
+          r.ngo_categories[0]?.categories?.name ??
+          '',
+        city: r.city ?? '',
+      }
+    }
+  )
+
+  const categories = (catRes.data ?? []) as { name: string; slug: string }[]
+
+  // Distinct city names (case-insensitive), capped at 3.
+  const seen = new Set<string>()
+  const cities: string[] = []
+  for (const row of (cityRes.data ?? []) as { city: string | null }[]) {
+    const c = row.city?.trim()
+    if (!c) continue
+    const key = c.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    cities.push(c)
+    if (cities.length >= 3) break
+  }
+
+  return { ngos, categories, cities }
+}
+
+export type CategoryCount = { category_id: string; count: number }
+
+/**
+ * Count of active NGOs per category, by PRIMARY category, keyed by the
+ * categories table UUID. Used to show "N NGOs" on homepage category cards.
+ */
+export async function getCategoryCounts(
+  client: DbClient
+): Promise<Record<string, number>> {
+  const { data, error } = await client
+    .from('ngo_categories')
+    .select('category_id, ngos!inner(listing_status)')
+    .eq('is_primary', true)
+    .eq('ngos.listing_status', 'Active')
+
+  if (error) throw error
+
+  const counts: Record<string, number> = {}
+  for (const row of (data ?? []) as { category_id: string }[]) {
+    counts[row.category_id] = (counts[row.category_id] ?? 0) + 1
+  }
+  return counts
+}
+
+export type StateWithCount = State & { count: number }
+
+/** Top states by active-NGO count, for the homepage "Browse by State" chips. */
+export async function getTopStates(
+  client: DbClient,
+  limit = 8
+): Promise<StateWithCount[]> {
+  const [statesRes, ngoRes] = await Promise.all([
+    client.from('states').select('*'),
+    client
+      .from('ngos')
+      .select('state_id')
+      .eq('listing_status', 'Active')
+      .not('state_id', 'is', null),
+  ])
+
+  if (statesRes.error) throw statesRes.error
+  if (ngoRes.error) throw ngoRes.error
+
+  const counts: Record<string, number> = {}
+  for (const row of (ngoRes.data ?? []) as { state_id: string }[]) {
+    counts[row.state_id] = (counts[row.state_id] ?? 0) + 1
+  }
+
+  return ((statesRes.data ?? []) as State[])
+    .map((s) => ({ ...s, count: counts[s.id] ?? 0 }))
+    .filter((s) => s.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit)
+}
+
 // ============================================================
 // Category & state queries
 // ============================================================
@@ -306,6 +579,48 @@ export async function getStates(client: DbClient): Promise<State[]> {
   if (error) throw error
 
   return (data ?? []) as State[]
+}
+
+// ============================================================
+// Homepage stats
+// ============================================================
+
+export type HomeStats = {
+  ngoCount: number
+  stateCount: number
+  categoryCount: number
+}
+
+/**
+ * Aggregate counts for the homepage stats banner:
+ * total active NGOs, distinct states they cover, and total categories.
+ */
+export async function getHomeStats(client: DbClient): Promise<HomeStats> {
+  const [{ count: ngoCount }, { count: categoryCount }, statesRes] =
+    await Promise.all([
+      client
+        .from('ngos')
+        .select('id', { count: 'exact', head: true })
+        .eq('listing_status', 'Active'),
+      client.from('categories').select('id', { count: 'exact', head: true }),
+      client
+        .from('ngos')
+        .select('state_id')
+        .eq('listing_status', 'Active')
+        .not('state_id', 'is', null),
+    ])
+
+  const stateIds = new Set(
+    ((statesRes.data ?? []) as { state_id: string | null }[])
+      .map((r) => r.state_id)
+      .filter(Boolean)
+  )
+
+  return {
+    ngoCount: ngoCount ?? 0,
+    categoryCount: categoryCount ?? 0,
+    stateCount: stateIds.size,
+  }
 }
 
 // ============================================================
