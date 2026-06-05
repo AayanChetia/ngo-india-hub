@@ -8,7 +8,7 @@ import { SearchAutocomplete } from "@/components/search/SearchAutocomplete";
 
 const NAV_LINKS: NavLink[] = [
   { label: "Categories", href: "/#categories" },
-  { label: "States", href: "/#states" },
+  { label: "States", href: "/state" },
   { label: "Featured", href: "/#featured" },
   { label: "Search", href: "/search" },
 ];

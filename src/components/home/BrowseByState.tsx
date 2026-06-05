@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { MapPin } from "lucide-react";
-import type { StateWithCount } from "@/lib/supabase/queries";
+import { stateSlug, type StateWithCount } from "@/lib/supabase/queries";
 
 type BrowseByStateProps = {
   states: StateWithCount[];
@@ -26,7 +26,7 @@ export function BrowseByState({ states }: BrowseByStateProps) {
           {states.map((state) => (
             <Link
               key={state.id}
-              href={`/search?state=${state.id}`}
+              href={`/state/${stateSlug(state.name)}`}
               className="group flex items-center gap-2 rounded-full border border-ink-200 bg-white px-4 py-2.5 text-sm shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-card-hover"
             >
               <MapPin

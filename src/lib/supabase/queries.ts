@@ -25,6 +25,7 @@ export type SortOption =
 
 export type NgoFilters = {
   state_id?: string
+  category_slugs?: string[]
   city?: string
   is_verified?: boolean
   volunteer_available?: boolean
@@ -305,6 +306,113 @@ export async function getNgosByCategory(
   return ((data ?? []) as unknown as RawNgo[]).map(toNgo)
 }
 
+/**
+ * URL slug for a state, derived from its name.
+ * "West Bengal" -> "west-bengal", "Delhi" -> "delhi".
+ */
+export function stateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/** Resolve a state by its URL slug (derived from name). Returns null if absent. */
+export async function getStateBySlug(
+  client: DbClient,
+  slug: string
+): Promise<State | null> {
+  const { data, error } = await client.from('states').select('*')
+  if (error) throw error
+  const target = slug.toLowerCase()
+  return (
+    ((data ?? []) as State[]).find((s) => stateSlug(s.name) === target) ?? null
+  )
+}
+
+/** Fetch all active NGOs in a given state by its UUID. */
+export async function getNgosByStateId(
+  client: DbClient,
+  stateId: string,
+  filters: NgoFilters = {}
+): Promise<NGO[]> {
+  let query = client
+    .from('ngos')
+    .select(NGO_SELECT)
+    .eq('listing_status', 'Active')
+    .eq('state_id', stateId)
+
+  query = applyFilters(query, filters)
+
+  const { data, error } = await query
+  if (error) throw error
+
+  return ((data ?? []) as unknown as RawNgo[]).map(toNgo)
+}
+
+export type StateCategoryCount = {
+  name: string
+  slug: string
+  count: number
+}
+
+/**
+ * Count of active NGOs per PRIMARY category within a state.
+ * Used for the clickable category-breakdown chips on a state page.
+ */
+export async function getStateCategoryBreakdown(
+  client: DbClient,
+  stateId: string
+): Promise<StateCategoryCount[]> {
+  const { data, error } = await client
+    .from('ngo_categories')
+    .select('categories ( name, slug ), ngos!inner ( state_id, listing_status )')
+    .eq('is_primary', true)
+    .eq('ngos.state_id', stateId)
+    .eq('ngos.listing_status', 'Active')
+
+  if (error) throw error
+
+  type Row = { categories: { name: string; slug: string } | null }
+  const counts = new Map<string, StateCategoryCount>()
+  for (const row of (data ?? []) as unknown as Row[]) {
+    const cat = row.categories
+    if (!cat) continue
+    const existing = counts.get(cat.slug)
+    if (existing) existing.count += 1
+    else counts.set(cat.slug, { name: cat.name, slug: cat.slug, count: 1 })
+  }
+
+  return Array.from(counts.values()).sort((a, b) => b.count - a.count)
+}
+
+/** All states that have at least one active NGO, with counts. For /state grid. */
+export async function getStatesWithCounts(
+  client: DbClient
+): Promise<StateWithCount[]> {
+  const [statesRes, ngoRes] = await Promise.all([
+    client.from('states').select('*'),
+    client
+      .from('ngos')
+      .select('state_id')
+      .eq('listing_status', 'Active')
+      .not('state_id', 'is', null),
+  ])
+
+  if (statesRes.error) throw statesRes.error
+  if (ngoRes.error) throw ngoRes.error
+
+  const counts: Record<string, number> = {}
+  for (const row of (ngoRes.data ?? []) as { state_id: string }[]) {
+    counts[row.state_id] = (counts[row.state_id] ?? 0) + 1
+  }
+
+  return ((statesRes.data ?? []) as State[])
+    .map((s) => ({ ...s, count: counts[s.id] ?? 0 }))
+    .filter((s) => s.count > 0)
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
 /** Fetch all active NGOs in a given state (identified by two-letter code e.g. "MH"). */
 export async function getNgosByState(
   client: DbClient,
@@ -371,6 +479,39 @@ export async function searchNgos(
 }
 
 /**
+ * Resolve a list of category slugs to the set of active-NGO ids carrying any of
+ * those categories (primary or secondary). Returns null when no slugs are given
+ * so callers can skip the id filter entirely, and an empty array when slugs are
+ * given but match nothing (so the result set is correctly empty).
+ */
+async function ngoIdsForCategorySlugs(
+  client: DbClient,
+  slugs: string[]
+): Promise<string[] | null> {
+  const wanted = slugs.map((s) => s.trim()).filter(Boolean)
+  if (wanted.length === 0) return null
+
+  const { data: catRows, error: catError } = await client
+    .from('categories')
+    .select('id')
+    .in('slug', wanted)
+  if (catError) throw catError
+
+  const categoryIds = ((catRows ?? []) as { id: string }[]).map((c) => c.id)
+  if (categoryIds.length === 0) return []
+
+  const { data: pivotRows, error: pivotError } = await client
+    .from('ngo_categories')
+    .select('ngo_id')
+    .in('category_id', categoryIds)
+  if (pivotError) throw pivotError
+
+  return Array.from(
+    new Set(((pivotRows ?? []) as { ngo_id: string }[]).map((r) => r.ngo_id))
+  )
+}
+
+/**
  * Free-text search over active NGOs by name, description, or city.
  * Used by the /search results page.
  */
@@ -379,10 +520,19 @@ export async function searchNgosByText(
   q: string,
   filters: NgoFilters = {}
 ): Promise<NGO[]> {
+  // Resolve category filter to NGO ids first (many-to-many lookup).
+  const categoryNgoIds = await ngoIdsForCategorySlugs(
+    client,
+    filters.category_slugs ?? []
+  )
+  if (categoryNgoIds !== null && categoryNgoIds.length === 0) return []
+
   let query = client
     .from('ngos')
     .select(NGO_SELECT)
     .eq('listing_status', 'Active')
+
+  if (categoryNgoIds !== null) query = query.in('id', categoryNgoIds)
 
   const term = q.trim()
   if (term) {

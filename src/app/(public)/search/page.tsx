@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   searchNgosByText,
   getStates,
+  getCategories,
   type NgoFilters,
   type SortOption,
 } from "@/lib/supabase/queries";
@@ -18,12 +19,22 @@ export const metadata: Metadata = {
 type SearchParams = {
   q?: string;
   state?: string;
+  category?: string;
   city?: string;
   volunteer?: string;
   internship?: string;
   donation?: string;
+  csr?: string;
+  impact_min?: string;
+  impact_max?: string;
   sort?: string;
 };
+
+function parseScore(value: string | undefined, fallback: number): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(10, Math.max(1, Math.round(n)));
+}
 
 const VALID_SORTS: SortOption[] = [
   "impact_score",
@@ -37,12 +48,23 @@ function buildFilters(sp: SearchParams): NgoFilters {
   const sort = VALID_SORTS.includes(sp.sort as SortOption)
     ? (sp.sort as SortOption)
     : "impact_score";
+  const categories = sp.category
+    ? sp.category.split(",").map((s) => s.trim()).filter(Boolean)
+    : undefined;
+  const impactMin =
+    sp.impact_min !== undefined ? parseScore(sp.impact_min, 1) : undefined;
+  const impactMax =
+    sp.impact_max !== undefined ? parseScore(sp.impact_max, 10) : undefined;
   return {
     state_id: sp.state || undefined,
+    category_slugs: categories?.length ? categories : undefined,
     city: sp.city || undefined,
     volunteer_available: sp.volunteer === "1" || undefined,
     internship_available: sp.internship === "1" || undefined,
     donation_available: sp.donation === "1" || undefined,
+    accepts_csr: sp.csr === "1" || undefined,
+    impact_score_min: impactMin,
+    impact_score_max: impactMax,
     sort,
   };
 }
@@ -56,9 +78,10 @@ export default async function SearchPage({
   const q = searchParams.q ?? "";
   const filters = buildFilters(searchParams);
 
-  const [ngos, states] = await Promise.all([
+  const [ngos, states, categories] = await Promise.all([
     searchNgosByText(supabase, q, filters),
     getStates(supabase),
+    getCategories(supabase),
   ]);
 
   return (
@@ -69,7 +92,7 @@ export default async function SearchPage({
             {q ? `Results for “${q}”` : "Search NGOs"}
           </h1>
           <p className="mt-1 text-ink-500">
-            {ngos.length} {ngos.length === 1 ? "NGO" : "NGOs"} found
+            Showing {ngos.length} {ngos.length === 1 ? "NGO" : "NGOs"}
           </p>
         </div>
       </div>
@@ -77,7 +100,7 @@ export default async function SearchPage({
       <div className="container-page py-10">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[240px_1fr]">
           <div className="lg:sticky lg:top-20 lg:self-start">
-            <FilterSidebar states={states} />
+            <FilterSidebar states={states} categories={categories} />
           </div>
 
           <div>
