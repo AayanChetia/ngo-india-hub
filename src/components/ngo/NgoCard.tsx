@@ -4,6 +4,8 @@ import type { NGO } from "@/types/database";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { ImpactBar } from "@/components/ngo/ImpactBar";
+import { SaveNgoButton } from "@/components/ngo/SaveNgoButton";
+import { CompareButton } from "@/components/compare/CompareButton";
 import { categoryThemeByName } from "@/lib/categoryColors";
 import { cn, formatCompact } from "@/lib/utils";
 
@@ -31,17 +33,23 @@ export function NgoCard({
     <Card
       hover
       className={cn(
-        "flex h-full flex-col",
+        "relative flex h-full flex-col",
         border === "top" ? cn("border-t-4", theme.topBorder) : cn("border-l-4", theme.border),
         theme.hoverBorder,
         className
       )}
     >
+      {/* Floating actions — sit above the Link so they stay clickable */}
+      <div className="absolute right-3 top-3 z-10 flex gap-1.5">
+        <CompareButton slug={ngo.slug} name={ngo.name} />
+        <SaveNgoButton ngoId={ngo.id} />
+      </div>
+
       <Link
         href={`/ngo/${ngo.slug}`}
         className="flex h-full flex-col rounded-2xl p-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
       >
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start justify-between gap-2 pr-[4.5rem]">
           {showCategory && ngo.primary_category && (
             <Badge variant="primary">{ngo.primary_category}</Badge>
           )}

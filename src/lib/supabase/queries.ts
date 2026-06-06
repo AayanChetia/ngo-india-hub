@@ -774,6 +774,96 @@ export async function getHomeStats(client: DbClient): Promise<HomeStats> {
 }
 
 // ============================================================
+// Platform impact stats
+// ============================================================
+
+export type ImpactStats = {
+  ngoCount: number
+  stateCount: number
+  categoryCount: number
+  beneficiaries: number
+  volunteerCount: number
+  internshipCount: number
+  csrCount: number
+  reg80gCount: number
+  categoryBreakdown: { name: string; slug: string; count: number }[]
+  topStates: StateWithCount[]
+}
+
+/** Aggregate platform-wide statistics for the /impact page. */
+export async function getImpactStats(client: DbClient): Promise<ImpactStats> {
+  const activeCount = (filter: (q: any) => any) => // eslint-disable-line @typescript-eslint/no-explicit-any
+    filter(
+      client
+        .from('ngos')
+        .select('id', { count: 'exact', head: true })
+        .eq('listing_status', 'Active')
+    )
+
+  const [
+    ngoRes,
+    volunteerRes,
+    internshipRes,
+    csrRes,
+    reg80gRes,
+    beneficiariesRes,
+    statesRes,
+    categories,
+    categoryCounts,
+    topStates,
+  ] = await Promise.all([
+    activeCount((q) => q),
+    activeCount((q) => q.eq('volunteer_available', true)),
+    activeCount((q) => q.eq('internship_available', true)),
+    activeCount((q) => q.eq('accepts_csr', true)),
+    activeCount((q) => q.eq('is_80g', 'Yes')),
+    client
+      .from('ngos')
+      .select('beneficiaries_count')
+      .eq('listing_status', 'Active'),
+    client
+      .from('ngos')
+      .select('state_id')
+      .eq('listing_status', 'Active')
+      .not('state_id', 'is', null),
+    getCategories(client),
+    getCategoryCounts(client),
+    getTopStates(client, 5),
+  ])
+
+  const beneficiaries = (
+    (beneficiariesRes.data ?? []) as { beneficiaries_count: number | null }[]
+  ).reduce((sum, r) => sum + (r.beneficiaries_count ?? 0), 0)
+
+  const stateCount = new Set(
+    ((statesRes.data ?? []) as { state_id: string | null }[])
+      .map((r) => r.state_id)
+      .filter(Boolean)
+  ).size
+
+  const categoryBreakdown = categories
+    .map((c) => ({
+      name: c.name,
+      slug: c.slug,
+      count: categoryCounts[c.id] ?? 0,
+    }))
+    .sort((a, b) => b.count - a.count)
+
+  return {
+    ngoCount: ngoRes.count ?? 0,
+    stateCount,
+    categoryCount: categories.length,
+    beneficiaries,
+    volunteerCount: volunteerRes.count ?? 0,
+    internshipCount: internshipRes.count ?? 0,
+    csrCount: csrRes.count ?? 0,
+    reg80gCount: reg80gRes.count ?? 0,
+    categoryBreakdown,
+    topStates,
+  }
+}
+
+// ============================================================
 // NGO profile sub-section queries
 // ============================================================
 
@@ -808,6 +898,107 @@ export async function getNgoGallery(
   if (error) throw error
 
   return (data ?? []) as NgoGallery[]
+}
+
+export type UserApplication = {
+  id: string
+  status: 'pending' | 'accepted' | 'rejected'
+  created_at: string
+  ngo: { name: string; slug: string } | null
+}
+
+/**
+ * Fetch a user's volunteer applications, newest first, with the joined NGO
+ * name and slug for linking. RLS restricts the result to the caller's own rows.
+ */
+export async function getUserApplications(
+  client: DbClient,
+  userId: string
+): Promise<UserApplication[]> {
+  const { data, error } = await client
+    .from('volunteer_applications')
+    .select('id, status, created_at, ngos ( name, slug )')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+
+  type Row = {
+    id: string
+    status: UserApplication['status']
+    created_at: string
+    ngos: { name: string; slug: string } | null
+  }
+
+  return ((data ?? []) as unknown as Row[]).map((r) => ({
+    id: r.id,
+    status: r.status,
+    created_at: r.created_at,
+    ngo: r.ngos,
+  }))
+}
+
+/**
+ * Fetch the NGOs a user has bookmarked, newest save first. RLS limits the
+ * saved_ngos rows to the caller's own; only active NGOs resolve through the join.
+ */
+export async function getUserSavedNgos(
+  client: DbClient,
+  userId: string
+): Promise<NGO[]> {
+  const { data, error } = await client
+    .from('saved_ngos')
+    .select(`saved_at, ngos ( ${NGO_SELECT} )`)
+    .eq('user_id', userId)
+    .order('saved_at', { ascending: false })
+
+  if (error) throw error
+
+  type Row = { ngos: RawNgo | null }
+  return ((data ?? []) as unknown as Row[])
+    .map((r) => r.ngos)
+    .filter((n): n is RawNgo => Boolean(n))
+    .map(toNgo)
+}
+
+export type PendingReview = {
+  id: string
+  rating: 1 | 2 | 3 | 4 | 5
+  comment: string | null
+  created_at: string
+  ngo: { name: string; slug: string } | null
+}
+
+/**
+ * Fetch all unapproved reviews with their NGO name/slug, newest first.
+ * Visible only to admins via the "admin manage reviews" RLS policy.
+ */
+export async function getPendingReviews(
+  client: DbClient
+): Promise<PendingReview[]> {
+  const { data, error } = await client
+    .from('reviews')
+    .select('id, rating, comment, created_at, ngos ( name, slug )')
+    .eq('is_approved', false)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+
+  type Row = {
+    id: string
+    rating: PendingReview['rating']
+    comment: string | null
+    created_at: string
+    ngos: { name: string; slug: string } | null
+  }
+
+  return ((data ?? []) as unknown as Row[]).map((r) => ({
+    id: r.id,
+    rating: r.rating,
+    comment: r.comment,
+    created_at: r.created_at,
+    ngo: r.ngos,
+  }))
 }
 
 /** Fetch approved reviews for an NGO profile page. */

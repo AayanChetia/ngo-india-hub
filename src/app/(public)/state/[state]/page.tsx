@@ -14,6 +14,7 @@ import {
 import { NgoCard } from "@/components/ngo/NgoCard";
 import { FilterSidebar } from "@/components/search/FilterSidebar";
 import { SortSelect } from "@/components/search/SortSelect";
+import { SITE_URL, SITE_NAME } from "@/lib/site";
 
 export const revalidate = 3600;
 
@@ -73,9 +74,25 @@ export async function generateMetadata({
   const supabase = createClient();
   const state = await getStateBySlug(supabase, params.state);
   if (!state) return { title: "State not found — NGO India Hub" };
+
+  const { count } = await supabase
+    .from("ngos")
+    .select("id", { count: "exact", head: true })
+    .eq("listing_status", "Active")
+    .eq("state_id", state.id);
+
+  const title = `NGOs in ${state.name} | NGO India Hub`;
+  const description = `Find verified NGOs in ${state.name}. Browse ${
+    count ?? 0
+  } organisations across all cause categories.`;
+  const url = `${SITE_URL}/state/${params.state}`;
+
   return {
-    title: `NGOs in ${state.name} — NGO India Hub`,
-    description: `Browse verified NGOs working across ${state.name}, India.`,
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: { title, description, url, siteName: SITE_NAME, type: "website" },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 

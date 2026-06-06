@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Scale } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
   searchNgosByText,
@@ -10,10 +12,27 @@ import {
 import { NgoCard } from "@/components/ngo/NgoCard";
 import { FilterSidebar } from "@/components/search/FilterSidebar";
 import { SortSelect } from "@/components/search/SortSelect";
+import { SITE_URL, SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Search NGOs — NGO India Hub",
-  description: "Search verified NGOs across India by name, cause, or city.",
+  title: "Search NGOs in India | NGO India Hub",
+  description:
+    "Search and filter 234+ verified NGOs across India by cause, state, city, and more.",
+  alternates: { canonical: `${SITE_URL}/search` },
+  openGraph: {
+    title: "Search NGOs in India | NGO India Hub",
+    description:
+      "Search and filter 234+ verified NGOs across India by cause, state, city, and more.",
+    url: `${SITE_URL}/search`,
+    siteName: SITE_NAME,
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Search NGOs in India | NGO India Hub",
+    description:
+      "Search and filter 234+ verified NGOs across India by cause, state, city, and more.",
+  },
 };
 
 type SearchParams = {
@@ -87,13 +106,22 @@ export default async function SearchPage({
   return (
     <div className="bg-white">
       <div className="border-b border-ink-100 bg-primary-50">
-        <div className="container-page py-10">
-          <h1 className="text-3xl font-bold tracking-tight text-ink-900">
-            {q ? `Results for “${q}”` : "Search NGOs"}
-          </h1>
-          <p className="mt-1 text-ink-500">
-            Showing {ngos.length} {ngos.length === 1 ? "NGO" : "NGOs"}
-          </p>
+        <div className="container-page flex flex-wrap items-end justify-between gap-4 py-10">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-ink-900">
+              {q ? `Results for “${q}”` : "Search NGOs"}
+            </h1>
+            <p className="mt-1 text-ink-500">
+              Showing {ngos.length} {ngos.length === 1 ? "NGO" : "NGOs"}
+            </p>
+          </div>
+          <Link
+            href="/compare"
+            className="inline-flex items-center gap-2 rounded-full border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink-800 hover:border-ink-300 hover:bg-ink-50"
+          >
+            <Scale size={16} className="text-primary" />
+            Compare NGOs
+          </Link>
         </div>
       </div>
 

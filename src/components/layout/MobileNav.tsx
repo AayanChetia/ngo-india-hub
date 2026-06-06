@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -10,10 +11,12 @@ type MobileNavProps = {
   open: boolean;
   onClose: () => void;
   links: NavLink[];
+  /** Optional content rendered at the bottom of the drawer (e.g. auth controls). */
+  footer?: ReactNode;
 };
 
 /** Slide-over navigation drawer for small screens. */
-export function MobileNav({ open, onClose, links }: MobileNavProps) {
+export function MobileNav({ open, onClose, links, footer }: MobileNavProps) {
   return (
     <div
       className={cn(
@@ -60,6 +63,9 @@ export function MobileNav({ open, onClose, links }: MobileNavProps) {
             </li>
           ))}
         </ul>
+        {footer && (
+          <div className="mt-auto border-t border-ink-100 p-3">{footer}</div>
+        )}
       </nav>
     </div>
   );

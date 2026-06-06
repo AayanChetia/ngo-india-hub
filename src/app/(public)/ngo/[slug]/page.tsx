@@ -19,12 +19,19 @@ import { createClient } from "@/lib/supabase/server";
 import {
   getNgoProfileBySlug,
   getNgoPrograms,
+  stateSlug,
 } from "@/lib/supabase/queries";
+import { SITE_URL, SITE_NAME } from "@/lib/site";
 import type { NgoProfile, Program } from "@/types/database";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ImpactBar } from "@/components/ngo/ImpactBar";
+import { VolunteerCTA } from "@/components/ngo/VolunteerCTA";
+import { SaveNgoButton } from "@/components/ngo/SaveNgoButton";
+import { CompareButton } from "@/components/compare/CompareButton";
+import { ReviewsList } from "@/components/ngo/ReviewsList";
+import { ReviewForm } from "@/components/ngo/ReviewForm";
 import { categoryThemeByName } from "@/lib/categoryColors";
 import { cn, formatCompact } from "@/lib/utils";
 
@@ -38,9 +45,28 @@ export async function generateMetadata({
   const supabase = createClient();
   const ngo = await getNgoProfileBySlug(supabase, params.slug);
   if (!ngo) return { title: "NGO not found — NGO India Hub" };
+
+  const title = `${ngo.name} — Volunteer, Donate & Learn | NGO India Hub`;
+  const description =
+    ngo.description ?? `${ngo.name} on NGO India Hub.`;
+  const url = `${SITE_URL}/ngo/${ngo.slug}`;
+
   return {
-    title: `${ngo.name} — NGO India Hub`,
-    description: ngo.description ?? `${ngo.name} on NGO India Hub.`,
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title,
+      description,
+      url,
+      siteName: SITE_NAME,
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
   };
 }
 
@@ -56,9 +82,12 @@ export default async function NgoProfilePage({
 
   const programs = await getNgoPrograms(supabase, ngo.id);
 
+  const programOptions = programs.map((p) => ({ id: p.id, title: p.title }));
+
   return (
     <div className="bg-white">
-      <NgoHero ngo={ngo} />
+      <NgoJsonLd ngo={ngo} />
+      <NgoHero ngo={ngo} programs={programOptions} />
 
       <div className="container-page grid grid-cols-1 gap-8 py-10 lg:grid-cols-[1fr_320px]">
         {/* Main column */}
@@ -66,6 +95,11 @@ export default async function NgoProfilePage({
           <About ngo={ngo} />
           <Programs programs={programs} />
           <GetInvolved ngo={ngo} />
+          <section>
+            <h2 className="text-xl font-semibold text-ink-900">Reviews</h2>
+            <ReviewsList ngoId={ngo.id} />
+            <ReviewForm ngoId={ngo.id} ngoSlug={ngo.slug} />
+          </section>
         </div>
 
         {/* Sidebar column */}
@@ -79,9 +113,81 @@ export default async function NgoProfilePage({
 }
 
 // ─────────────────────────────────────────────────────────────
+// Structured data (JSON-LD): Organization + BreadcrumbList
+// ─────────────────────────────────────────────────────────────
+function NgoJsonLd({ ngo }: { ngo: NgoProfile }) {
+  const url = `${SITE_URL}/ngo/${ngo.slug}`;
+
+  const organization = {
+    "@context": "https://schema.org",
+    "@type": "NGO",
+    name: ngo.name,
+    description: ngo.description ?? undefined,
+    url,
+    email: ngo.email ?? undefined,
+    telephone: ngo.phone ?? undefined,
+    foundingDate: ngo.founded_year ? String(ngo.founded_year) : undefined,
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: ngo.address ?? undefined,
+      addressLocality: ngo.city || undefined,
+      addressRegion: ngo.state || undefined,
+      postalCode: ngo.pincode ?? undefined,
+      addressCountry: "IN",
+    },
+    sameAs:
+      Object.values(ngo.social_links ?? {}).filter(Boolean).length > 0
+        ? Object.values(ngo.social_links).filter(Boolean)
+        : undefined,
+  };
+
+  const breadcrumb = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+      ngo.primary_category
+        ? {
+            "@type": "ListItem",
+            position: 2,
+            name: ngo.primary_category,
+            item: `${SITE_URL}/category/${stateSlug(ngo.primary_category)}`,
+          }
+        : null,
+      {
+        "@type": "ListItem",
+        position: ngo.primary_category ? 3 : 2,
+        name: ngo.name,
+        item: url,
+      },
+    ].filter(Boolean),
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        // Structured data must be a raw JSON string in the markup.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organization) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }}
+      />
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // Hero
 // ─────────────────────────────────────────────────────────────
-function NgoHero({ ngo }: { ngo: NgoProfile }) {
+function NgoHero({
+  ngo,
+  programs,
+}: {
+  ngo: NgoProfile;
+  programs: { id: string; title: string }[];
+}) {
   const theme = categoryThemeByName(ngo.primary_category);
   return (
     <div
@@ -143,7 +249,12 @@ function NgoHero({ ngo }: { ngo: NgoProfile }) {
 
         <div className="mt-6 flex flex-wrap gap-3">
           {ngo.volunteer_available && (
-            <Button>Volunteer with us</Button>
+            <VolunteerCTA
+              ngoId={ngo.id}
+              ngoSlug={ngo.slug}
+              ngoName={ngo.name}
+              programs={programs}
+            />
           )}
           {ngo.donation_available && (
             <Button variant="accent">Donate</Button>
@@ -153,6 +264,8 @@ function NgoHero({ ngo }: { ngo: NgoProfile }) {
               <Button variant="outline">Visit website</Button>
             </a>
           )}
+          <SaveNgoButton ngoId={ngo.id} variant="button" />
+          <CompareButton slug={ngo.slug} name={ngo.name} variant="button" />
         </div>
       </div>
     </div>

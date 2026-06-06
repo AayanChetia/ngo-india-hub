@@ -11,6 +11,7 @@ import {
 import { NgoCard } from "@/components/ngo/NgoCard";
 import { FilterSidebar } from "@/components/search/FilterSidebar";
 import { SortSelect } from "@/components/search/SortSelect";
+import { SITE_URL, SITE_NAME } from "@/lib/site";
 
 export const revalidate = 3600;
 
@@ -53,11 +54,17 @@ export async function generateMetadata({
   const supabase = createClient();
   const category = await getCategoryBySlug(supabase, params.slug);
   if (!category) return { title: "Category not found — NGO India Hub" };
+
+  const title = `${category.name} NGOs in India | NGO India Hub`;
+  const description = `Discover the best ${category.name} NGOs in India. Find volunteer opportunities, internships, and donation options.`;
+  const url = `${SITE_URL}/category/${category.slug}`;
+
   return {
-    title: `${category.name} NGOs in India — NGO India Hub`,
-    description:
-      category.description ??
-      `Browse verified ${category.name} NGOs across India.`,
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: { title, description, url, siteName: SITE_NAME, type: "website" },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 

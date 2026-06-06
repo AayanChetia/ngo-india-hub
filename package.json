@@ -12,6 +12,7 @@
     "db:generate-sql": "tsx scripts/generate-seed-sql.ts"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.4.0",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.2",
     "clsx": "^2.1.1",
@@ -20,7 +21,9 @@
     "next": "14.2.35",
     "react": "^18",
     "react-dom": "^18",
-    "tailwind-merge": "^3.6.0"
+    "react-hook-form": "^7.77.0",
+    "tailwind-merge": "^3.6.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^20",

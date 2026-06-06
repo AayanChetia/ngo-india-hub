@@ -21,6 +21,7 @@ const FOOTER_COLUMNS = [
   {
     title: "About",
     links: [
+      { label: "Our Impact", href: "/impact" },
       { label: "Our Mission", href: "/#about" },
       { label: "How it works", href: "/#about" },
       { label: "Contact", href: "/#about" },

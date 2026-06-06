@@ -115,6 +115,12 @@ export type NgoGalleryRow = {
   sort_order: number
 }
 
+export type SavedNgoRow = {
+  user_id: string
+  ngo_id: string
+  saved_at: string
+}
+
 // ============================================================
 // Insert types — auto-generated columns are optional on insert.
 // ============================================================
@@ -138,12 +144,20 @@ export type UserInsert = Omit<UserRow, 'created_at'> & { created_at?: string }
 
 export type VolunteerApplicationInsert = Omit<
   VolunteerApplicationRow,
-  'id' | 'created_at'
-> & { id?: string; created_at?: string }
-
-export type ReviewInsert = Omit<ReviewRow, 'id' | 'created_at'> & {
+  'id' | 'created_at' | 'status'
+> & {
   id?: string
   created_at?: string
+  status?: VolunteerApplicationRow['status']
+}
+
+export type ReviewInsert = Omit<
+  ReviewRow,
+  'id' | 'created_at' | 'is_approved'
+> & {
+  id?: string
+  created_at?: string
+  is_approved?: boolean
 }
 
 export type NgoGalleryInsert = Omit<NgoGalleryRow, 'id'> & { id?: string }
@@ -275,52 +289,71 @@ export type Database = {
         Row: NgoRow
         Insert: NgoInsert
         Update: Partial<NgoInsert>
+        Relationships: []
       }
       categories: {
         Row: CategoryRow
         Insert: CategoryInsert
         Update: Partial<CategoryInsert>
+        Relationships: []
       }
       states: {
         Row: StateRow
         Insert: StateInsert
         Update: Partial<StateInsert>
+        Relationships: []
       }
       ngo_categories: {
         Row: NgoCategoryRow
         Insert: NgoCategoryRow
         Update: Partial<NgoCategoryRow>
+        Relationships: []
       }
       programs: {
         Row: ProgramRow
         Insert: ProgramInsert
         Update: Partial<ProgramInsert>
+        Relationships: []
       }
       users: {
         Row: UserRow
         Insert: UserInsert
         Update: Partial<UserInsert>
+        Relationships: []
       }
       ngo_admins: {
         Row: NgoAdminRow
         Insert: NgoAdminRow
         Update: Partial<NgoAdminRow>
+        Relationships: []
       }
       volunteer_applications: {
         Row: VolunteerApplicationRow
         Insert: VolunteerApplicationInsert
         Update: Partial<VolunteerApplicationInsert>
+        Relationships: []
       }
       reviews: {
         Row: ReviewRow
         Insert: ReviewInsert
         Update: Partial<ReviewInsert>
+        Relationships: []
       }
       ngo_gallery: {
         Row: NgoGalleryRow
         Insert: NgoGalleryInsert
         Update: Partial<NgoGalleryInsert>
+        Relationships: []
       }
+      saved_ngos: {
+        Row: SavedNgoRow
+        Insert: Omit<SavedNgoRow, 'saved_at'> & { saved_at?: string }
+        Update: Partial<SavedNgoRow>
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
     }
     Functions: {
       is_admin: {
@@ -331,6 +364,12 @@ export type Database = {
         Args: { p_ngo_id: string }
         Returns: boolean
       }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }
