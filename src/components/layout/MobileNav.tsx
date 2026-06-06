@@ -1,6 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -15,41 +16,66 @@ type MobileNavProps = {
   footer?: ReactNode;
 };
 
-/** Slide-over navigation drawer for small screens. */
+/**
+ * Slide-over navigation drawer for small screens.
+ *
+ * Rendered through a portal to <body> so it escapes the header's stacking
+ * context (the header uses backdrop-blur, which would otherwise trap this
+ * overlay below other fixed elements like the chat widget).
+ */
 export function MobileNav({ open, onClose, links, footer }: MobileNavProps) {
-  return (
+  const [mounted, setMounted] = useState(false);
+
+  // Portals require the DOM — only render after mount to stay SSR-safe.
+  useEffect(() => setMounted(true), []);
+
+  // Lock background scroll while the drawer is open.
+  useEffect(() => {
+    if (!open) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [open]);
+
+  if (!mounted) return null;
+
+  return createPortal(
     <div
       className={cn(
-        "fixed inset-0 z-50 lg:hidden",
+        "fixed inset-0 z-[100] lg:hidden",
         open ? "pointer-events-auto" : "pointer-events-none"
       )}
       aria-hidden={!open}
     >
-      {/* Backdrop */}
+      {/* Backdrop — solid dark overlay */}
       <div
         className={cn(
-          "absolute inset-0 bg-ink-900/40 transition-opacity",
+          "absolute inset-0 bg-black/60 transition-opacity duration-200",
           open ? "opacity-100" : "opacity-0"
         )}
         onClick={onClose}
       />
-      {/* Panel */}
+
+      {/* Panel — opaque white drawer sliding in from the right */}
       <nav
         className={cn(
-          "absolute right-0 top-0 flex h-full w-72 max-w-[80%] flex-col bg-white shadow-xl transition-transform duration-200",
+          "absolute right-0 top-0 flex h-full w-72 max-w-[85%] flex-col bg-white shadow-2xl transition-transform duration-200 ease-out",
           open ? "translate-x-0" : "translate-x-full"
         )}
       >
         <div className="flex items-center justify-between border-b border-ink-100 px-5 py-4">
-          <span className="font-semibold text-ink-900">Menu</span>
+          <span className="text-base font-semibold text-ink-900">Menu</span>
           <button
             onClick={onClose}
             aria-label="Close menu"
-            className="rounded-full p-1.5 text-ink-500 hover:bg-ink-100"
+            className="rounded-full p-1.5 text-ink-700 hover:bg-ink-100 hover:text-ink-900"
           >
-            <X size={20} />
+            <X size={22} />
           </button>
         </div>
+
         <ul className="flex flex-col gap-1 p-3">
           {links.map((link) => (
             <li key={link.href}>
@@ -63,10 +89,12 @@ export function MobileNav({ open, onClose, links, footer }: MobileNavProps) {
             </li>
           ))}
         </ul>
+
         {footer && (
           <div className="mt-auto border-t border-ink-100 p-3">{footer}</div>
         )}
       </nav>
-    </div>
+    </div>,
+    document.body
   );
 }
