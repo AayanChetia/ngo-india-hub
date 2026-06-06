@@ -15,6 +15,9 @@ import { CategoryGrid } from "@/components/home/CategoryGrid";
 import { HowItWorks } from "@/components/home/HowItWorks";
 import { FeaturedNgos } from "@/components/home/FeaturedNgos";
 import { BrowseByState } from "@/components/home/BrowseByState";
+import { NewsTicker } from "@/components/news/NewsTicker";
+import { NewsCard } from "@/components/news/NewsCard";
+import { fetchNews, type NewsArticle } from "@/lib/news";
 
 // Revalidate the homepage data periodically (ISR).
 export const revalidate = 3600;
@@ -48,16 +51,53 @@ export default async function Home() {
     console.error("Homepage data fetch failed:", err);
   }
 
+  // Sector news for the "Latest NGO News" grid (empty when no API key set).
+  const news = await fetchNews("NGO India", 6);
+
   return (
     <>
       <Hero />
+      <NewsTicker />
       <StatsBanner stats={stats} />
       {categories.length > 0 && (
         <CategoryGrid categories={categories} counts={counts} />
       )}
+      <LatestNews articles={news} />
       <HowItWorks />
       <FeaturedNgos ngos={featured} />
       <BrowseByState states={topStates} />
     </>
+  );
+}
+
+/** "Latest NGO News" — a 6-card grid of sector news. Hidden when empty. */
+function LatestNews({ articles }: { articles: NewsArticle[] }) {
+  if (articles.length === 0) return null;
+  return (
+    <section className="container-page py-12">
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-ink-900">
+            Latest NGO News
+          </h2>
+          <p className="mt-1 text-ink-500">
+            Headlines from across India&apos;s social sector.
+          </p>
+        </div>
+      </div>
+      <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {articles.map((a) => (
+          <NewsCard
+            key={a.url}
+            title={a.title}
+            description={a.description}
+            url={a.url}
+            source={a.source}
+            publishedAt={a.publishedAt}
+            image={a.image}
+          />
+        ))}
+      </div>
+    </section>
   );
 }

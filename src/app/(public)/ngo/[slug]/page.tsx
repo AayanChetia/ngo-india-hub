@@ -32,6 +32,7 @@ import { SaveNgoButton } from "@/components/ngo/SaveNgoButton";
 import { CompareButton } from "@/components/compare/CompareButton";
 import { ReviewsList } from "@/components/ngo/ReviewsList";
 import { ReviewForm } from "@/components/ngo/ReviewForm";
+import { NgoNewsSection } from "@/components/news/NgoNewsSection";
 import { categoryThemeByName } from "@/lib/categoryColors";
 import { cn, formatCompact } from "@/lib/utils";
 
@@ -94,6 +95,7 @@ export default async function NgoProfilePage({
         <div className="space-y-10">
           <About ngo={ngo} />
           <Programs programs={programs} />
+          <NgoNewsSection ngoName={ngo.name} />
           <GetInvolved ngo={ngo} />
           <section>
             <h2 className="text-xl font-semibold text-ink-900">Reviews</h2>
