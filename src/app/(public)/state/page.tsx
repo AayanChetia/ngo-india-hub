@@ -7,9 +7,14 @@ import { getStatesWithCounts, stateSlug } from "@/lib/supabase/queries";
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Browse NGOs by State — NGO India Hub",
+  title: "NGOs by State in India | NGO India Hub",
   description:
-    "Explore verified NGOs across every Indian state. Pick a state to see the organisations working there.",
+    "Browse NGOs across all states in India. Find local NGOs in Maharashtra, Delhi, Karnataka, Tamil Nadu and more.",
+  keywords: [
+    "NGOs by state India", "state wise NGOs India",
+    "NGOs Maharashtra", "NGOs Delhi", "NGOs Karnataka",
+    "NGOs Tamil Nadu", "NGOs Gujarat", "local NGOs India",
+  ],
 };
 
 export default async function StatesPage() {

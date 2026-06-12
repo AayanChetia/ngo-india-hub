@@ -1,0 +1,11 @@
+PLACEHOLDER — replace with a real Open Graph image.
+
+Create a file named `og-image.png` in this `public/` directory.
+Required dimensions: 1200 x 630 px (PNG).
+
+This image is referenced by the site metadata (root layout openGraph/twitter)
+and is what shows up as the preview card when the site is shared on
+social media, WhatsApp, Slack, Google, etc.
+
+Until a real og-image.png is added here, social/share previews will have
+no image. This .txt file can be deleted once the real image exists.

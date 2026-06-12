@@ -90,6 +90,14 @@ export async function generateMetadata({
   return {
     title,
     description,
+    keywords: [
+      `NGOs in ${state.name}`,
+      `NGO ${state.name}`,
+      `volunteer ${state.name}`,
+      `donate ${state.name}`,
+      `best NGOs ${state.name}`,
+      `non profit ${state.name} India`,
+    ],
     alternates: { canonical: url },
     openGraph: { title, description, url, siteName: SITE_NAME, type: "website" },
     twitter: { card: "summary_large_image", title, description },

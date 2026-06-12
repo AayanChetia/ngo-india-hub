@@ -55,6 +55,15 @@ export async function generateMetadata({
   return {
     title,
     description,
+    keywords: [
+      ngo.name,
+      `${ngo.name} volunteer`,
+      `${ngo.name} donate`,
+      `${ngo.name} internship`,
+      `${ngo.primary_category} NGO ${ngo.state}`,
+      `NGOs in ${ngo.city}`,
+      `NGOs in ${ngo.state}`,
+    ],
     alternates: { canonical: url },
     openGraph: {
       title,

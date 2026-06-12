@@ -62,8 +62,22 @@ export async function generateMetadata({
   return {
     title,
     description,
+    keywords: [
+      `${category.name} NGOs in India`,
+      `${category.name} NGO volunteer`,
+      `${category.name} NGO donate`,
+      `best ${category.name} NGOs India`,
+      `${category.name} non profit India`,
+      `${category.name} charity India`,
+    ],
     alternates: { canonical: url },
-    openGraph: { title, description, url, siteName: SITE_NAME, type: "website" },
+    openGraph: {
+      title,
+      description,
+      url,
+      siteName: SITE_NAME,
+      type: "website",
+    },
     twitter: { card: "summary_large_image", title, description },
   };
 }
@@ -97,7 +111,7 @@ export default async function CategoryPage({
             </span>
             <div>
               <h1 className="text-3xl font-bold tracking-tight text-ink-900">
-                {category.name}
+                {category.name} NGOs in India
               </h1>
               {category.description && (
                 <p className="mt-1 max-w-2xl text-ink-500">

@@ -18,6 +18,12 @@ export const metadata: Metadata = {
   title: "Search NGOs in India | NGO India Hub",
   description:
     "Search and filter 234+ verified NGOs across India by cause, state, city, and more.",
+  keywords: [
+    "search NGOs India", "find NGO India", "NGO directory",
+    "volunteer opportunities India", "NGO internship India",
+    "donate to NGO India", "CSR NGO partners India",
+    "80G registered NGOs", "verified NGOs India",
+  ],
   alternates: { canonical: `${SITE_URL}/search` },
   openGraph: {
     title: "Search NGOs in India | NGO India Hub",
@@ -109,7 +115,7 @@ export default async function SearchPage({
         <div className="container-page flex flex-wrap items-end justify-between gap-4 py-10">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-ink-900">
-              {q ? `Results for “${q}”` : "Search NGOs"}
+              {q ? `Results for “${q}”` : "Search NGOs in India"}
             </h1>
             <p className="mt-1 text-ink-500">
               Showing {ngos.length} {ngos.length === 1 ? "NGO" : "NGOs"}
