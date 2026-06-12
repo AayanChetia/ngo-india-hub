@@ -23,6 +23,8 @@ export type ListNgoInput = {
   internship: boolean;
   donation: boolean;
   csr: boolean;
+  /** Honeypot — must stay empty. Bots that auto-fill every field trip this. */
+  website_url?: string;
 };
 
 export type ListNgoResult =
@@ -66,6 +68,14 @@ async function uniqueSlug(
 export async function submitNgoListing(
   input: ListNgoInput
 ): Promise<ListNgoResult> {
+  // ── Honeypot ────────────────────────────────────────────────
+  // A real user never sees or fills this field. If it has any value the
+  // request is almost certainly a bot — pretend success and drop it silently
+  // so the bot gets no signal to adapt.
+  if (input.website_url && input.website_url.trim() !== "") {
+    return { ok: true };
+  }
+
   // ── Server-side validation ──────────────────────────────────
   const errors: Record<string, string> = {};
   const name = input.name?.trim() ?? "";

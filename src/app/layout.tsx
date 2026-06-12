@@ -25,11 +25,21 @@ export const metadata: Metadata = {
   description:
     "Find and connect with verified NGOs across India. Search by cause, city, or state. Volunteer, donate, or partner for CSR — 234+ NGOs listed.",
   keywords: [
-    "NGO in India", "NGOs India", "volunteer India", "donate India",
-    "non profit India", "charity India", "CSR India", "social work India",
-    "NGO volunteer opportunities", "internship NGO India",
-    "best NGOs India", "verified NGOs", "NGO directory India",
-    "how to volunteer India", "NGO near me India",
+    "NGO in India",
+    "NGOs India",
+    "volunteer India",
+    "donate India",
+    "non profit India",
+    "charity India",
+    "CSR India",
+    "social work India",
+    "NGO volunteer opportunities",
+    "internship NGO India",
+    "best NGOs India",
+    "verified NGOs",
+    "NGO directory India",
+    "how to volunteer India",
+    "NGO near me India",
   ],
   authors: [{ name: "NGO India Hub" }],
   creator: "NGO India Hub",
@@ -44,7 +54,9 @@ export const metadata: Metadata = {
     title: "NGO India Hub — Discover India's Most Impactful NGOs",
     description:
       "Find and connect with verified NGOs across India. Search by cause, city, or state. Volunteer, donate, or partner for CSR.",
-    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "NGO India Hub" }],
+    images: [
+      { url: "/og-image.png", width: 1200, height: 630, alt: "NGO India Hub" },
+    ],
   },
   twitter: {
     card: "summary_large_image",

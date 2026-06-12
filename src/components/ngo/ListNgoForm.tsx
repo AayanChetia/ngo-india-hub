@@ -37,6 +37,7 @@ const emptyForm: ListNgoInput = {
   internship: false,
   donation: false,
   csr: false,
+  website_url: "",
 };
 
 export function ListNgoForm({
@@ -122,6 +123,21 @@ export function ListNgoForm({
 
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-8">
+      {/* Honeypot — hidden from users, off-screen and excluded from tab order.
+          Bots that fill every field trip this and get silently rejected. */}
+      <div aria-hidden className="absolute left-[-9999px] top-[-9999px] h-0 w-0 overflow-hidden">
+        <label htmlFor="website_url">Website URL (leave blank)</label>
+        <input
+          id="website_url"
+          name="website_url"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          value={form.website_url ?? ""}
+          onChange={(e) => set("website_url", e.target.value)}
+        />
+      </div>
+
       {/* BASIC INFO */}
       <Section title="Basic info">
         <Field label="NGO name" required error={errors.name}>
