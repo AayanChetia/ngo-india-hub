@@ -13,7 +13,7 @@ const FOOTER_COLUMNS = [
   {
     title: "For NGOs",
     links: [
-      { label: "List your NGO", href: "/register" },
+      { label: "List your NGO", href: "/list-your-ngo" },
       { label: "Claim a listing", href: "/register" },
       { label: "NGO Dashboard", href: "/dashboard" },
     ],

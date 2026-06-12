@@ -16,6 +16,7 @@ const NAV_LINKS: NavLink[] = [
   { label: "Featured", href: "/#featured" },
   { label: "Compare", href: "/compare" },
   { label: "Search", href: "/search" },
+  { label: "List your NGO", href: "/list-your-ngo" },
 ];
 
 type HeaderClientProps = {
