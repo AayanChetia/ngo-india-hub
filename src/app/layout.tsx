@@ -59,7 +59,7 @@ export const metadata: Metadata = {
     googleBot: { index: true, follow: true, "max-image-preview": "large" },
   },
   verification: {
-    google: "", // fill in after adding site to Google Search Console
+    google: "aGQeePfewlGIuJx5gbPLKV2pNDAWGSD18JGzpQQk_XY",
   },
   category: "nonprofit",
 };
